@@ -1,0 +1,61 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: environmental-monitoring
+    
+  datasource:
+    url: jdbc:postgresql://localhost:5432/enterprise
+    username: postgres
+    password: ala1nna
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+        
+  jackson:
+    time-zone: UTC
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+        
+logging:
+  level:
+    com.fairchild.envmonitor: DEBUG
+    org.springframework.web: INFO
+    
+# External API configurations
+external-apis:
+  weather-gov:
+    base-url: https://api.weather.gov
+    user-agent: Environmental Monitoring Dashboard by Ty Fairchild
+    
+  open-meteo:
+    base-url: https://api.open-meteo.com/v1
+    
+  marine-data:
+    base-url: https://api.tidesandcurrents.noaa.gov/api/prod/datagetter
+    
+  air-quality:
+    base-url: https://api.airnowapi.org/aq
+    api-key: your_airnow_api_key_here
+    
+# Scheduler configurations
+scheduler:
+  weather-fetch-interval: 300000  # 5 minutes in milliseconds
+  marine-fetch-interval: 600000   # 10 minutes
+  air-quality-interval: 900000    # 15 minutes
+  fire-data-interval: 3600000     # 1 hour
