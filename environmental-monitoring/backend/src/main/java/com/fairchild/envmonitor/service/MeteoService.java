@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -114,7 +115,7 @@ public class MeteoService {
 
             // Parse timestamp
             String timestampStr = current.get("time").asText();
-            meteoData.setTimestamp(OffsetDateTime.parse(timestampStr + ":00", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            meteoData.setTimestamp(LocalDateTime.parse(timestampStr + ":00", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                     .atOffset(OffsetDateTime.now().getOffset()));
 
             // Parse temperature (already in Celsius, convert to Fahrenheit)

@@ -1,175 +1,170 @@
 <div class="dashboard-container">
-  <mat-toolbar color="primary">
-    <span>Environmental Monitoring Dashboard</span>
-    <span class="spacer"></span>
-    <button mat-icon-button (click)="manualRefresh()" [disabled]="loading">
-      <mat-icon>refresh</mat-icon>
-    </button>
-    <span class="last-updated">Last updated: {{ lastUpdated | date:'short' }}</span>
-  </mat-toolbar>
+  <header class="dashboard-header">
+    <h1>Environmental Monitoring Dashboard</h1>
+    <div class="header-controls">
+      <button class="refresh-btn" (click)="manualRefresh()" [disabled]="loading$ | async">
+        🔄 Refresh
+      </button>
+      <span class="last-updated">Last updated: {{ lastUpdated$ | async | date:'short' }}</span>
+    </div>
+  </header>
 
-  <div class="dashboard-content" *ngIf="!loading && dashboardData">
+  <!-- Loading State -->
+  <div *ngIf="loading$ | async" class="loading-container">
+    <div class="spinner">⏳</div>
+    <p>Loading environmental data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error$ | async as error" class="error-container">
+    <div class="error-icon">⚠️</div>
+    <p>{{ error }}</p>
+    <button (click)="manualRefresh()">Try Again</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div class="dashboard-content" *ngIf="!(loading$ | async) && !(error$ | async) && (dashboardData$ | async) as dashboardData">
     <div class="dashboard-grid">
       
       <!-- Weather Data Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Weather Conditions</mat-card-title>
-          <mat-card-subtitle>Recent weather data from api.weather.gov</mat-card-subtitle>
-          <button mat-icon-button (click)="refreshDataSource('weather')">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="weather-grid">
-            <div *ngFor="let weather of dashboardData.recentWeatherData.slice(0, 4)" class="weather-item">
+      <div class="data-card">
+        <div class="card-header">
+          <h3>Weather Conditions</h3>
+          <p class="card-subtitle">Recent weather data</p>
+          <button class="card-refresh" (click)="refreshDataSource('weather')">🔄</button>
+        </div>
+        <div class="card-content">
+          <div class="weather-grid" *ngIf="dashboardData.recentWeatherData && dashboardData.recentWeatherData.length > 0; else noWeatherData">
+            <div *ngFor="let weather of dashboardData.recentWeatherData.slice(0, 4); trackBy: trackByIndex" class="weather-item">
               <h4>{{ weather.stationId }}</h4>
-              <p><strong>{{ weather.temperature | number:'1.1-1' }}°F</strong></p>
-              <p>{{ weather.weatherConditions }}</p>
+              <p><strong>{{ weather.temperature | number:'1.1-1' }}°C</strong></p>
               <p>Humidity: {{ weather.humidity | number:'1.0-0' }}%</p>
-              <p>Wind: {{ weather.windSpeed | number:'1.0-0' }} mph</p>
+              <p>Wind: {{ weather.windSpeed | number:'1.0-0' }} km/h</p>
+              <p>Pressure: {{ weather.pressure | number:'1.0-0' }} hPa</p>
             </div>
           </div>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- Meteo Data Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Open-Meteo Data</mat-card-title>
-          <mat-card-subtitle>Weather data from Open-Meteo API</mat-card-subtitle>
-          <button mat-icon-button (click)="refreshDataSource('meteo')">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="meteo-grid">
-            <div *ngFor="let meteo of dashboardData.recentMeteoData.slice(0, 4)" class="meteo-item">
-              <h4>{{ meteo.latitude }}, {{ meteo.longitude }}</h4>
-              <p><strong>{{ meteo.temperature2m | number:'1.1-1' }}°F</strong></p>
-              <p>UV Index: {{ meteo.uvIndex | number:'1.1-1' }}</p>
-              <p>Precipitation: {{ meteo.precipitation | number:'1.1-1' }} mm</p>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- Marine Data Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Marine Conditions</mat-card-title>
-          <mat-card-subtitle>Tidal and wave information</mat-card-subtitle>
-          <button mat-icon-button (click)="refreshDataSource('marine')">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="marine-grid">
-            <div *ngFor="let marine of dashboardData.recentMarineData.slice(0, 4)" class="marine-item">
-              <h4>Station {{ marine.stationId }}</h4>
-              <p>Water Level: {{ marine.waterLevel | number:'1.2-2' }} ft</p>
-              <p>Wave Height: {{ marine.waveHeight | number:'1.1-1' }} ft</p>
-              <p>Water Temp: {{ marine.waterTemperature | number:'1.1-1' }}°F</p>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
+          <ng-template #noWeatherData>
+            <p class="no-data">No weather data available</p>
+          </ng-template>
+        </div>
+      </div>
 
       <!-- Air Quality Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Air Quality</mat-card-title>
-          <mat-card-subtitle>Particulate monitoring data</mat-card-subtitle>
-          <button mat-icon-button (click)="refreshDataSource('airquality')">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="air-quality-grid">
-            <div *ngFor="let air of dashboardData.recentAirQualityData.slice(0, 4)" class="air-quality-item">
-              <h4>{{ air.stationId }}</h4>
+      <div class="data-card">
+        <div class="card-header">
+          <h3>Air Quality</h3>
+          <p class="card-subtitle">Particulate monitoring data</p>
+          <button class="card-refresh" (click)="refreshDataSource('airquality')">🔄</button>
+        </div>
+        <div class="card-content">
+          <div class="air-quality-grid" *ngIf="dashboardData.recentAirQualityData && dashboardData.recentAirQualityData.length > 0; else noAirData">
+            <div *ngFor="let air of dashboardData.recentAirQualityData.slice(0, 3); trackBy: trackByIndex" class="air-item">
+              <h4>{{ air.stationName || air.stationId }}</h4>
               <p>AQI: <strong [class]="getAqiClass(air.aqi)">{{ air.aqi }}</strong></p>
               <p>PM2.5: {{ air.pm25 | number:'1.1-1' }} μg/m³</p>
               <p>PM10: {{ air.pm10 | number:'1.1-1' }} μg/m³</p>
+              <p>NO₂: {{ air.no2 | number:'1.1-1' }} μg/m³</p>
             </div>
           </div>
-        </mat-card-content>
-      </mat-card>
+          <ng-template #noAirData>
+            <p class="no-data">No air quality data available</p>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Marine Data Section -->
+      <div class="data-card">
+        <div class="card-header">
+          <h3>Marine Conditions</h3>
+          <p class="card-subtitle">Tidal and wave information</p>
+          <button class="card-refresh" (click)="refreshDataSource('marine')">🔄</button>
+        </div>
+        <div class="card-content">
+          <div class="marine-grid" *ngIf="dashboardData.recentMarineData && dashboardData.recentMarineData.length > 0; else noMarineData">
+            <div *ngFor="let marine of dashboardData.recentMarineData.slice(0, 3); trackBy: trackByIndex" class="marine-item">
+              <h4>{{ marine.stationName || marine.stationId }}</h4>
+              <p>Water Level: {{ marine.waterLevel || marine.tideLevel | number:'1.2-2' }} m</p>
+              <p>Wave Height: {{ marine.waveHeight | number:'1.1-1' }} m</p>
+              <p>Water Temp: {{ marine.waterTemperature | number:'1.1-1' }}°C</p>
+              <p>Salinity: {{ marine.salinity | number:'1.1-1' }} PSU</p>
+            </div>
+          </div>
+          <ng-template #noMarineData>
+            <p class="no-data">No marine data available</p>
+          </ng-template>
+        </div>
+      </div>
 
       <!-- Fire Data Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Forest Fires</mat-card-title>
-          <mat-card-subtitle>Active fire information</mat-card-subtitle>
-          <button mat-icon-button (click)="refreshDataSource('fire')">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="fire-grid">
-            <div *ngFor="let fire of dashboardData.recentFireData.slice(0, 4)" class="fire-item">
-              <h4>{{ fire.name }}</h4>
-              <p>Status: <span [class]="getFireStatusClass(fire.fireStatus)">{{ fire.fireStatus }}</span></p>
-              <p>Size: {{ fire.fireSizeAcres | number:'1.0-0' }} acres</p>
-              <p>Cause: {{ fire.fireCause }}</p>
+      <div class="data-card">
+        <div class="card-header">
+          <h3>Forest Fires</h3>
+          <p class="card-subtitle">Active fire information</p>
+          <button class="card-refresh" (click)="refreshDataSource('fire')">🔄</button>
+        </div>
+        <div class="card-content">
+          <div class="fire-grid" *ngIf="dashboardData.recentFireData && dashboardData.recentFireData.length > 0; else noFireData">
+            <div *ngFor="let fire of dashboardData.recentFireData.slice(0, 3); trackBy: trackByIndex" class="fire-item">
+              <h4>{{ fire.fireName || fire.name || 'Fire Incident' }}</h4>
+              <p>Status: <span [class]="getFireStatusClass(fire.status || fire.fireStatus)">{{ fire.status || fire.fireStatus }}</span></p>
+              <p>Location: {{ fire.latitude | number:'1.4-4' }}, {{ fire.longitude | number:'1.4-4' }}</p>
+              <p *ngIf="fire.brightness">Brightness: {{ fire.brightness | number:'1.1-1' }} K</p>
+              <p *ngIf="fire.confidence">Confidence: {{ fire.confidence }}%</p>
             </div>
           </div>
-        </mat-card-content>
-      </mat-card>
+          <ng-template #noFireData>
+            <p class="no-data">No fire data available</p>
+          </ng-template>
+        </div>
+      </div>
 
       <!-- Webcams Section -->
-      <mat-card class="data-card">
-        <mat-card-header>
-          <mat-card-title>Live Webcams</mat-card-title>
-          <mat-card-subtitle>Available public webcam feeds</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="webcam-grid">
-            <div *ngFor="let webcam of dashboardData.activeWebcams.slice(0, 6)" class="webcam-item">
+      <div class="data-card">
+        <div class="card-header">
+          <h3>Live Webcams</h3>
+          <p class="card-subtitle">Available public webcam feeds</p>
+        </div>
+        <div class="card-content">
+          <div class="webcam-grid" *ngIf="dashboardData.activeWebcams && dashboardData.activeWebcams.length > 0; else noWebcamData">
+            <div *ngFor="let webcam of dashboardData.activeWebcams.slice(0, 4); trackBy: trackByIndex" class="webcam-item">
               <h4>{{ webcam.name }}</h4>
               <p>{{ webcam.location }}</p>
-              <p>Category: {{ webcam.category }}</p>
-              <button mat-button color="primary" (click)="openWebcam(webcam.url)">View</button>
+              <p>{{ webcam.description }}</p>
+              <button class="view-btn" (click)="openWebcam(webcam.streamUrl || webcam.url)">
+                {{ webcam.isActive ? '📹 View Live' : '📷 View' }}
+              </button>
             </div>
           </div>
-        </mat-card-content>
-      </mat-card>
+          <ng-template #noWebcamData>
+            <p class="no-data">No webcam data available</p>
+          </ng-template>
+        </div>
+      </div>
 
-      <!-- System Status Section -->
-      <mat-card class="data-card full-width">
-        <mat-card-header>
-          <mat-card-title>Data Source Status</mat-card-title>
-          <mat-card-subtitle>System monitoring and health</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="status-grid">
-            <div *ngFor="let status of dashboardData.dataSourceStatuses" class="status-item">
-              <h4>{{ status.sourceName }}</h4>
-              <p>Status: <mat-icon [class]="status.isActive ? 'status-active' : 'status-inactive'">
-                {{ status.isActive ? 'check_circle' : 'error' }}
-              </mat-icon></p>
-              <p>Last Success: {{ status.lastSuccessfulFetch | date:'short' }}</p>
-              <p>Fetch Count: {{ status.fetchCount }}</p>
-              <p>Error Count: {{ status.errorCount }}</p>
+      <!-- Data Source Status -->
+      <div class="data-card full-width">
+        <div class="card-header">
+          <h3>Data Source Status</h3>
+          <p class="card-subtitle">System monitoring and health</p>
+        </div>
+        <div class="card-content">
+          <div class="status-grid" *ngIf="dashboardData.dataSourceStatuses && dashboardData.dataSourceStatuses.length > 0">
+            <div *ngFor="let status of dashboardData.dataSourceStatuses; trackBy: trackByIndex" class="status-item">
+              <h4>{{ status.dataSourceName || status.sourceName }}</h4>
+              <p>Status: <span [class]="status.isOnline || status.isActive ? 'status-active' : 'status-inactive'">
+                {{ status.isOnline || status.isActive ? '🟢 Online' : '🔴 Offline' }}
+              </span></p>
+              <p *ngIf="status.lastUpdate || status.lastSuccessfulFetch">
+                Last Update: {{ (status.lastUpdate || status.lastSuccessfulFetch) | date:'short' }}
+              </p>
+              <p *ngIf="status.fetchCount">Fetch Count: {{ status.fetchCount }}</p>
+              <p *ngIf="status.errorCount && status.errorCount > 0">Errors: {{ status.errorCount }}</p>
+              <p *ngIf="status.errorMessage">Error: {{ status.errorMessage }}</p>
             </div>
           </div>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </div>
 
     </div>
   </div>
-
-  <!-- Loading Indicator -->
-  <div class="loading-container" *ngIf="loading">
-    <mat-spinner></mat-spinner>
-    <p>Loading dashboard data...</p>
-  </div>
-
-  <!-- Error Message -->
-  <div class="error-container" *ngIf="error && !loading">
-    <mat-icon color="warn">error</mat-icon>
-    <p>{{ error }}</p>
-    <button mat-raised-button color="primary" (click)="loadDashboardData()">Retry</button>
-  </div>
-
 </div>

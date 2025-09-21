@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -15,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class WeatherService {
@@ -45,6 +48,22 @@ public class WeatherService {
         this.weatherDataRepository = weatherDataRepository;
         this.dataSourceStatusService = dataSourceStatusService;
         this.objectMapper = objectMapper;
+    }
+
+    @Async("taskExecutor")
+    public CompletableFuture<Void> fetchAndStoreWeatherDataAsync() {
+        logger.info("Starting async weather data fetch for all default stations");
+
+        return CompletableFuture.runAsync(() -> {
+            for (String stationId : DEFAULT_STATIONS) {
+                fetchStationData(stationId)
+                        .doOnSuccess(
+                                data -> logger.info("Successfully fetched weather data for station: {}", stationId))
+                        .doOnError(
+                                error -> logger.error("Failed to fetch weather data for station: {}", stationId, error))
+                        .subscribe();
+            }
+        });
     }
 
     public Mono<Void> fetchAndStoreWeatherData() {
@@ -157,19 +176,23 @@ public class WeatherService {
         }
     }
 
+    @Cacheable(value = "weatherData", key = "#hours")
     public List<WeatherData> getRecentWeatherData(int hours) {
         OffsetDateTime since = OffsetDateTime.now().minusHours(hours);
         return weatherDataRepository.findRecentWeatherData(since);
     }
 
+    @Cacheable(value = "stationData", key = "#stationId")
     public List<WeatherData> getStationData(String stationId) {
         return weatherDataRepository.findByStationIdOrderByTimestampDesc(stationId);
     }
 
+    @Cacheable(value = "availableStations")
     public List<String> getAvailableStations() {
         return weatherDataRepository.findDistinctStationIds();
     }
 
+    @Cacheable(value = "latestStationData", key = "#stationId")
     public WeatherData getLatestStationData(String stationId) {
         return weatherDataRepository.findLatestByStationId(stationId);
     }

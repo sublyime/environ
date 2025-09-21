@@ -18,6 +18,11 @@ CREATE TABLE weather_data (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Performance indexes for weather_data
+CREATE INDEX idx_weather_station_timestamp ON weather_data(station_id, timestamp DESC);
+CREATE INDEX idx_weather_timestamp ON weather_data(timestamp DESC);
+CREATE INDEX idx_weather_created_at ON weather_data(created_at);
+
 -- Open-Meteo weather data
 CREATE TABLE meteo_data (
     id BIGSERIAL PRIMARY KEY,
@@ -33,6 +38,11 @@ CREATE TABLE meteo_data (
     raw_data JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance indexes for meteo_data
+CREATE INDEX idx_meteo_location_timestamp ON meteo_data(latitude, longitude, timestamp DESC);
+CREATE INDEX idx_meteo_timestamp ON meteo_data(timestamp DESC);
+CREATE INDEX idx_meteo_location ON meteo_data(latitude, longitude);
 
 -- Tidal and wave information
 CREATE TABLE marine_data (
@@ -51,6 +61,11 @@ CREATE TABLE marine_data (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Performance indexes for marine_data
+CREATE INDEX idx_marine_station_timestamp ON marine_data(station_id, timestamp DESC);
+CREATE INDEX idx_marine_timestamp ON marine_data(timestamp DESC);
+CREATE INDEX idx_marine_location ON marine_data(latitude, longitude);
+
 -- Public webcam information
 CREATE TABLE webcam_data (
     id BIGSERIAL PRIMARY KEY,
@@ -67,6 +82,11 @@ CREATE TABLE webcam_data (
     last_checked TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance indexes for webcam_data
+CREATE INDEX idx_webcam_active ON webcam_data(is_active);
+CREATE INDEX idx_webcam_category_active ON webcam_data(category, is_active);
+CREATE INDEX idx_webcam_location ON webcam_data USING GIN(to_tsvector('english', location));
 
 -- Particulate monitoring data
 CREATE TABLE air_quality_data (
@@ -86,6 +106,11 @@ CREATE TABLE air_quality_data (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Performance indexes for air_quality_data
+CREATE INDEX idx_air_quality_station_timestamp ON air_quality_data(station_id, timestamp DESC);
+CREATE INDEX idx_air_quality_timestamp ON air_quality_data(timestamp DESC);
+CREATE INDEX idx_air_quality_location ON air_quality_data(latitude, longitude);
+
 -- Forest fire information
 CREATE TABLE fire_data (
     id BIGSERIAL PRIMARY KEY,
@@ -104,6 +129,12 @@ CREATE TABLE fire_data (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Performance indexes for fire_data
+CREATE INDEX idx_fire_status ON fire_data(fire_status);
+CREATE INDEX idx_fire_location ON fire_data(latitude, longitude);
+CREATE INDEX idx_fire_discovery_date ON fire_data(discovery_date);
+CREATE INDEX idx_fire_updated_at ON fire_data(updated_at DESC);
+
 -- Dashboard configurations for customization
 CREATE TABLE dashboard_configs (
     id BIGSERIAL PRIMARY KEY,
@@ -115,6 +146,9 @@ CREATE TABLE dashboard_configs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance indexes for dashboard_configs
+CREATE INDEX idx_dashboard_configs_user ON dashboard_configs(user_id);
 
 -- Data source monitoring
 CREATE TABLE data_source_status (
@@ -128,17 +162,8 @@ CREATE TABLE data_source_status (
     error_count INTEGER DEFAULT 0
 );
 
--- Create indexes for performance
-CREATE INDEX idx_weather_data_timestamp ON weather_data(timestamp);
-CREATE INDEX idx_weather_data_station ON weather_data(station_id);
-CREATE INDEX idx_meteo_data_timestamp ON meteo_data(timestamp);
-CREATE INDEX idx_meteo_data_location ON meteo_data(latitude, longitude);
-CREATE INDEX idx_marine_data_timestamp ON marine_data(timestamp);
-CREATE INDEX idx_marine_data_station ON marine_data(station_id);
-CREATE INDEX idx_air_quality_timestamp ON air_quality_data(timestamp);
-CREATE INDEX idx_air_quality_station ON air_quality_data(station_id);
-CREATE INDEX idx_fire_data_location ON fire_data(latitude, longitude);
-CREATE INDEX idx_dashboard_configs_user ON dashboard_configs(user_id);
+-- Performance indexes for data_source_status
+CREATE INDEX idx_data_source_active ON data_source_status(is_active);
 
 -- Insert initial data source status records
 INSERT INTO data_source_status (source_name, is_active) VALUES

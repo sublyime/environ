@@ -2,12 +2,15 @@ package com.fairchild.envmonitor.controller;
 
 import com.fairchild.envmonitor.dto.*;
 import com.fairchild.envmonitor.service.*;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,56 +45,70 @@ public class DashboardController {
     }
 
     @GetMapping("/data")
+    @Cacheable(value = "dashboardData", key = "#hours")
     public ResponseEntity<DashboardDataDto> getDashboardData(@RequestParam(defaultValue = "24") int hours) {
         logger.info("Fetching dashboard data for the last {} hours", hours);
 
         try {
-            DashboardDataDto dashboardData = new DashboardDataDto();
-
-            // Fetch recent weather data
-            dashboardData.setRecentWeatherData(
-                    weatherService.getRecentWeatherData(hours).stream()
+            // Execute all data fetching operations in parallel
+            CompletableFuture<List<WeatherDataDto>> weatherFuture = CompletableFuture
+                    .supplyAsync(() -> weatherService.getRecentWeatherData(hours).stream()
                             .map(this::convertToWeatherDto)
                             .collect(Collectors.toList()));
 
-            // Fetch recent meteo data
-            dashboardData.setRecentMeteoData(
-                    meteoService.getRecentMeteoData(hours).stream()
+            CompletableFuture<List<MeteoDataDto>> meteoFuture = CompletableFuture
+                    .supplyAsync(() -> meteoService.getRecentMeteoData(hours).stream()
                             .map(this::convertToMeteoDto)
                             .collect(Collectors.toList()));
 
-            // Fetch recent marine data
-            dashboardData.setRecentMarineData(
-                    marineDataService.getRecentMarineData(hours).stream()
+            CompletableFuture<List<MarineDataDto>> marineFuture = CompletableFuture
+                    .supplyAsync(() -> marineDataService.getRecentMarineData(hours).stream()
                             .map(this::convertToMarineDto)
                             .collect(Collectors.toList()));
 
-            // Fetch recent air quality data
-            dashboardData.setRecentAirQualityData(
-                    airQualityService.getRecentAirQualityData(hours).stream()
+            CompletableFuture<List<AirQualityDataDto>> airQualityFuture = CompletableFuture
+                    .supplyAsync(() -> airQualityService.getRecentAirQualityData(hours).stream()
                             .map(this::convertToAirQualityDto)
                             .collect(Collectors.toList()));
 
-            // Fetch recent fire data
-            dashboardData.setRecentFireData(
-                    fireDataService.getRecentlyUpdatedFires(hours).stream()
+            CompletableFuture<List<FireDataDto>> fireFuture = CompletableFuture
+                    .supplyAsync(() -> fireDataService.getRecentlyUpdatedFires(hours).stream()
                             .map(this::convertToFireDto)
                             .collect(Collectors.toList()));
 
-            // Fetch active webcams
-            dashboardData.setActiveWebcams(
-                    webcamDataService.getActiveWebcams().stream()
+            CompletableFuture<List<WebcamDataDto>> webcamFuture = CompletableFuture
+                    .supplyAsync(() -> webcamDataService.getActiveWebcams().stream()
                             .map(this::convertToWebcamDto)
                             .collect(Collectors.toList()));
 
-            // Fetch data source statuses
-            dashboardData.setDataSourceStatuses(
-                    dataSourceStatusService.getAllDataSourceStatuses().stream()
+            CompletableFuture<List<DataSourceStatusDto>> statusFuture = CompletableFuture
+                    .supplyAsync(() -> dataSourceStatusService.getAllDataSourceStatuses().stream()
                             .map(this::convertToDataSourceStatusDto)
                             .collect(Collectors.toList()));
 
+            // Wait for all futures to complete
+            CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                    weatherFuture, meteoFuture, marineFuture, airQualityFuture,
+                    fireFuture, webcamFuture, statusFuture);
+
+            allFutures.get(); // Wait for completion
+
+            // Build response
+            DashboardDataDto dashboardData = new DashboardDataDto();
+            dashboardData.setRecentWeatherData(weatherFuture.get());
+            dashboardData.setRecentMeteoData(meteoFuture.get());
+            dashboardData.setRecentMarineData(marineFuture.get());
+            dashboardData.setRecentAirQualityData(airQualityFuture.get());
+            dashboardData.setRecentFireData(fireFuture.get());
+            dashboardData.setActiveWebcams(webcamFuture.get());
+            dashboardData.setDataSourceStatuses(statusFuture.get());
+
             return ResponseEntity.ok(dashboardData);
 
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error("Error fetching dashboard data", e);
+            Thread.currentThread().interrupt();
+            return ResponseEntity.internalServerError().build();
         } catch (Exception e) {
             logger.error("Error fetching dashboard data", e);
             return ResponseEntity.internalServerError().build();
